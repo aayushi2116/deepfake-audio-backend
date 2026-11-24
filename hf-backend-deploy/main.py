@@ -102,8 +102,7 @@ async def websocket_signaling(websocket: WebSocket, room_id: str, client_id: str
         })
 
 # ----------------- Audio Detection WebSocket -----------------
-# ----------------- Audio Detection WebSocket -----------------
-ALLOWED_DETECTION_MODELS = {"webrtc", "original", "cond_4b"}
+ALLOWED_DETECTION_MODELS = {"webrtc", "mic", "original", "cond_4b"}
 
 @app.websocket("/ws/detection/{client_id}")
 async def websocket_detection(
@@ -192,7 +191,7 @@ MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB
 @app.post("/api/detect")
 async def detect_audio(
     file: UploadFile = File(...),
-    model: Optional[str] = Query(None, description="Optional model checkpoint alias ('original', 'retrained', or 'cond_4b')"),
+    model: Optional[str] = Query(None, description="Optional model checkpoint alias ('webrtc', 'mic', 'original', 'retrained', or 'cond_4b')"),
     aggregation: Optional[str] = Query("mean", description="Aggregation method across windows ('mean' or 'median')"),
     threshold: Optional[float] = Query(None, description="Optional custom decision threshold override")
 ):
@@ -221,4 +220,3 @@ async def detect_audio(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
