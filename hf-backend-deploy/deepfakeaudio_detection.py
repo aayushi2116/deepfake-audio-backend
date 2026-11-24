@@ -55,13 +55,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model and checkpoint path resolution
 BACKEND_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = BACKEND_DIR.parent
+PROJECT_DIR = BACKEND_DIR if (BACKEND_DIR / "models").exists() else BACKEND_DIR.parent
 ORIGINAL_MODEL_PATH = PROJECT_DIR / "models" / "best_model.pth"
 RETRAINED_MODEL_PATH = PROJECT_DIR / "models" / "best_model_retrained.pth"
 COND_4B_MODEL_PATH = PROJECT_DIR / "models" / "phase4_experiments" / "cond_4b_finetune.pth"
 WEBRTC_MODEL_PATH = PROJECT_DIR / "models" / "best_webrtc_model.pth"
 MIC_MODEL_PATH = PROJECT_DIR / "models" / "best_mic_model.pth"
-DEFAULT_MODEL_PATH = WEBRTC_MODEL_PATH if WEBRTC_MODEL_PATH.exists() else ORIGINAL_MODEL_PATH
+DEFAULT_MODEL_PATH = (
+    WEBRTC_MODEL_PATH
+    if WEBRTC_MODEL_PATH.exists()
+    else (MIC_MODEL_PATH if MIC_MODEL_PATH.exists() else ORIGINAL_MODEL_PATH)
+)
 
 MODEL_THRESHOLDS: dict[str, float] = {
     "original": 0.50,
@@ -81,7 +85,7 @@ _models: dict = {}
 
 
 def get_active_model_name() -> str:
-    default_mode = "webrtc" if WEBRTC_MODEL_PATH.exists() else "original"
+    default_mode = "webrtc" if WEBRTC_MODEL_PATH.exists() else ("mic" if MIC_MODEL_PATH.exists() else "original")
     return os.getenv("ACTIVE_MODEL_CHECKPOINT", default_mode).strip().lower()
 
 
@@ -102,6 +106,8 @@ def resolve_checkpoint_path(checkpoint: Path | str | None = None) -> tuple[Path,
     if chk_str in ("webrtc", "live", "default", "prod", "production", "none", ""):
         if WEBRTC_MODEL_PATH.exists():
             return WEBRTC_MODEL_PATH, "webrtc"
+        if MIC_MODEL_PATH.exists():
+            return MIC_MODEL_PATH, "mic"
         return ORIGINAL_MODEL_PATH, "original"
     elif chk_str in ("mic",):
         if MIC_MODEL_PATH.exists():
@@ -151,6 +157,7 @@ def get_model(checkpoint_path: Path | str | None = None) -> AudioDeepfakeDetecto
                 f"Model checkpoint not found at '{target_path}'. Expected PyTorch checkpoint."
             )
 
+    _models.clear()
     net = AudioDeepfakeDetector().to(device)
     try:
         raw_ckpt = torch.load(target_path, map_location=device, weights_only=False)
